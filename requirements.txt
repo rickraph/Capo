@@ -1,3 +1,5 @@
 PyQt6
 librosa
 matplotlib
+soundfile
+numpy
