@@ -17,7 +17,7 @@ class AudioEngine:
     def get_chords(self):
         """
         Analyzes pitch content to guess chords.
-        Returns a list of chords corresponding to each second of audio.
+        Returns a list of chords corresponding to each second of audio
         """
         if self.y is None:
             return []
