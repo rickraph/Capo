@@ -4,13 +4,13 @@ import os
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QLabel,
     QVBoxLayout, QHBoxLayout, QGridLayout, QWidget,
-    QPushButton, QFileDialog, QFrame, QStyle,
+    QPushButton, QFrame, QStyle, QButtonGroup, QFileDialog, QSizePolicy, QSpacerItem
 )
-from PyQt6.QtCore import Qt, QUrl, QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QUrl, QTimer, QThread, pyqtSignal, QSize
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtGui import QKeySequence, QShortcut, QIcon, QFont, QColor, QPalette
 
-# NOTE: relative imports because this file is inside the kelvi_app package
+# relative imports inside package
 from .audio_engine import AudioEngine
 from .waveform_view import WaveformView
 from .chord_diagram import ChordDiagramWidget
@@ -61,122 +61,203 @@ class RiffStationWindow(QMainWindow):
         self.original_bpm = 0.0
         self.key_shift = 0
         self.capo = 0
-        self.notes = ['C', 'C#', 'D', 'D#', 'E', 'F',
-                      'F#', 'G', 'G#', 'A', 'A#', 'B']
-
+        self.chord_type_mode = "beginner"  # Changed default to 'beginner'
+        self.notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
         self.original_file_path = None
         self.chords = []
         self.display_chords = []
 
-        # Playhead timer
         self.timer = QTimer()
-        self.timer.setInterval(50)  # ~20 FPS
+        self.timer.setInterval(50) 
         self.timer.timeout.connect(self.update_game_loop)
 
-        # Window setup
-        self.setWindowTitle("My Riffstation Clone")
-        self.setFixedSize(1200, 650)  # lock size
+        # --- WINDOW SETUP ---
+        self.setWindowTitle("Capo")
+        self.setFixedSize(1200, 720)
+        self.setMinimumSize(1200, 720)
+        self.setMaximumSize(1200, 720)
+        
+        self.setWindowFlags(
+            Qt.WindowType.Window | 
+            Qt.WindowType.WindowCloseButtonHint | 
+            Qt.WindowType.WindowMinimizeButtonHint |
+            Qt.WindowType.CustomizeWindowHint |
+            Qt.WindowType.WindowTitleHint
+        )
+        
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
-        # Studio Professional palette
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #19232d;
-                font-family: "Segoe UI", "Arial";
-                color: #ffffff;
-            }
+        # --- PATH SETUP ---
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        assets_path = os.path.join(base_dir, "assets")
+        assets_path = assets_path.replace('\\', '/') 
 
-            QFrame[class="panel"] {
-                background-color: #263238;
-                border: 1px solid #37474f;
-                border-radius: 10px;
-            }
+        print(f"Loading assets from: {assets_path}")
 
-            QLabel#SectionTitle {
-                color: #fff176;
-                font-size: 14px;
-                font-weight: 600;
-                letter-spacing: 1px;
-            }
+        # --- STYLESHEET ---
+        self.setStyleSheet(f"""
+            QMainWindow {{
+                background-color: #0c0704;
+                background-image: url({assets_path}/border_shell.png);
+                background-position: center;
+                background-repeat: no-repeat;
+                background-size: cover;
+                font-family: "Segoe UI", "Helvetica", sans-serif;
+            }}
 
-            QFrame[class="panel"] QLabel {
-                color: #ffffff;
-                font-size: 13px;
-            }
+            QWidget#CentralWidget {{
+                background-color: #b86e28;
+                background-image: url({assets_path}/bg_main_wood.jpg);
+                background-position: center;
+                background-repeat: no-repeat;
+                background-size: 100% 100%;
+                border: 5px solid #d9b15c; /* Gold Border */
+                border-radius: 30px;
+            }}
 
-            QLabel#ControlLabel {
-                color: #eceff1;
-                font-weight: 500;
-                font-size: 13px;
-            }
+            QFrame[class="panel"] {{
+                background-image: url({assets_path}/panel_wood.png);
+                background-position: center;
+                background-repeat: no-repeat;
+                background-size: 100% 100%;
+                border: 3px solid #d2ad61;
+                border-radius: 15px;
+                padding: 4px;
+            }}
 
-            QLabel#ValueLabel {
-                color: #fff176;
-                font-weight: bold;
+            QFrame#ControlsPanel {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #f4c979, stop:0.45 #e0b168, stop:1 #b7773b);
+                border: 3px solid #d2ad61;
+                border-radius: 15px;
+                padding: 10px;
+            }}
+
+            QFrame#WaveformFrame {{
+                background-color: #0b0a08;
+                border: 4px solid #d2ad61;
+                border-radius: 12px;
+                padding: 0px; 
+            }}
+
+            /* --- TEXT --- */
+            QLabel {{
+                color: #f2d48a; /* GOLD */
+                font-weight: 900;
+                background: transparent;
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.9);
+            }}
+
+            QLabel#WindowTitle {{
+                color: #f4f1e6;
                 font-size: 16px;
-            }
-
-            QLabel#InfoLabel {
-                color: #fff176;
+                font-weight: 900;
+                letter-spacing: 1px;
+                text-shadow: 1px 1px 3px #000;
+            }}
+            
+            QLabel#SectionTitle {{
+                color: #f2d48a;
                 font-size: 12px;
-            }
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                border-bottom: 2px solid #f2d48a;
+                padding-bottom: 4px;
+                margin-bottom: 8px;
+                text-shadow: 1px 1px 2px #000;
+            }}
+            
+            QLabel#ValueLabel {{
+                color: #f2d48a;
+                font-size: 20px;
+                font-family: "Arial";
+                font-weight: 900;
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.9);
+            }}
 
-            QPushButton {
-                background-color: #263238;
-                color: #ffffff;
-                border: 1px solid #455a64;
-                border-radius: 6px;
-                padding: 4px 8px;
-            }
-            QPushButton:hover {
-                background-color: #fff176;
-                border-color: #fff9c4;
-                color: #263238;
-            }
-            QPushButton:pressed {
-                background-color: #ffe082;
-                border-color: #fff59d;
-                color: #263238;
-            }
+            QLabel[class="ChordChip"] {{
+                background-image: url({assets_path}/chord_chip.png);
+                background-position: center;
+                background-size: 100% 100%;
+                background-repeat: no-repeat;
+                color: #f2d48a;
+                font-weight: 900;
+                font-size: 13px;
+                padding: 10px 8px;
+                min-width: 80px;
+                qproperty-alignment: AlignCenter;
+                text-shadow: 0px 0px 1px rgba(255,255,255,0.4);
+            }}
 
-            QPushButton#TransportButton {
-                background-color: #263238;
-                border-radius: 18px;
-                min-width: 36px;
-                min-height: 36px;
-                border: 1px solid #455a64;
-            }
-            QPushButton#TransportButton:hover {
-                background-color: #fff176;
-                border-color: #fff9c4;
-                color: #263238;
-            }
+            /* --- KNOBS / CIRCLE BUTTONS --- */
+            QPushButton.circle-btn {{
+                background-image: url({assets_path}/knob_gold.png);
+                background-position: center;
+                background-repeat: no-repeat;
+                background-size: cover;
+                background-color: transparent;
+                border: none;
+                min-width: 32px;
+                max-width: 32px;
+                min-height: 32px;
+                max-height: 32px;
+                border-radius: 16px;
+                color: #3E2723;
+                font-weight: 900;
+                padding: 0;
+            }}
+            QPushButton.circle-btn:pressed {{
+                padding-top: 2px;
+                padding-left: 2px;
+            }}
 
-            QPushButton#ZoomButton {
-                background-color: #263238;
-                border-radius: 6px;
-                border: 1px solid #455a64;
-                font-weight: bold;
-            }
-            QPushButton#ZoomButton:hover {
-                background-color: #fff176;
-                color: #263238;
-            }
+            /* --- PILL BUTTONS --- */
+            QPushButton.pill-btn {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #f8f4ec, stop:1 #d8cdb8);
+                border: 1px solid #8D6E63;
+                border-radius: 15px;
+                color: #1a0e05;
+                font-weight: 900;
+                padding: 6px 15px;
+                font-size: 12px;
+                min-width: 90px; /* Slightly wider for "Advanced" text */
+            }}
+            QPushButton.pill-btn:pressed {{
+                padding-top: 3px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #e9dfcc, stop:1 #cbbda3);
+            }}
+            
+            QPushButton.pill-btn:checked {{
+                color: #000;
+                border: 2px solid #D4AF37;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #f8e7b0, stop:1 #dfc37f);
+            }}
 
-            QWidget#waveformContainer {
-                border-radius: 8px;
-                border: 1px solid #4fc3f7;
-                background-color: #19232d;
-            }
+            /* --- TRANSPORT BRIDGE --- */
+            QFrame#BridgeFrame {{
+                background-image: url({assets_path}/transport_bar.png);
+                background-position: center;
+                background-size: 100% 100%;
+                background-repeat: no-repeat;
+                border: none;
+            }}
 
-            QWidget QLabel.chord-chip {
-                background-color: #29434e;
-                border-radius: 6px;
-                border: 1px solid #4fc3f7;
-                padding: 6px 10px;
-                color: #fff176;
-                font-weight: 600;
-            }
+            QPushButton#TransportButton {{
+                background-color: #f5f1e7;
+                border: 2px solid #5D4037;
+                border-radius: 25px;
+                min-width: 50px;
+                min-height: 50px;
+                color: #1a0e05;
+                qproperty-iconSize: 26px 26px;
+            }}
+            QPushButton#TransportButton:hover {{
+                background-color: #ffffff;
+                border-color: #D4AF37;
+            }}
         """)
 
         self.init_ui()
@@ -185,263 +266,264 @@ class RiffStationWindow(QMainWindow):
 
     def init_ui(self):
         main_widget = QWidget()
+        main_widget.setObjectName("CentralWidget")
         self.setCentralWidget(main_widget)
+        
         self.main_layout = QVBoxLayout()
         self.main_layout.setSpacing(10)
-        self.main_layout.setContentsMargins(10, 10, 10, 10)
+        self.main_layout.setContentsMargins(20, 15, 20, 15) 
         main_widget.setLayout(self.main_layout)
 
-        # TOP: waveform
+        # Title Label
+        title_lbl = QLabel("Capo")
+        title_lbl.setObjectName("WindowTitle")
+        title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.main_layout.addWidget(title_lbl)
+
+        # ── TOP: Waveform (170px) ─────────────────────────────────────
         self.top_frame = QFrame()
-        self.top_frame.setProperty("class", "panel")
-        self.top_frame.setFixedHeight(200)
-
-        top_container = QHBoxLayout()
-        top_container.setContentsMargins(0, 0, 0, 0)
-        self.top_frame.setLayout(top_container)
-
-        waveform_container = QWidget()
-        waveform_container.setObjectName("waveformContainer")
-        wc_layout = QVBoxLayout()
-        wc_layout.setContentsMargins(0, 0, 0, 0)
-        waveform_container.setLayout(wc_layout)
+        self.top_frame.setObjectName("WaveformFrame")
+        self.top_frame.setFixedHeight(170) 
+        
+        top_layout = QHBoxLayout()
+        top_layout.setContentsMargins(0, 0, 10, 0)
+        top_layout.setSpacing(5)
+        self.top_frame.setLayout(top_layout)
 
         self.waveform_widget = WaveformView()
         self.waveform_widget.time_clicked.connect(self.seek_track)
-        wc_layout.addWidget(self.waveform_widget)
+        top_layout.addWidget(self.waveform_widget, stretch=1)
 
-        top_container.addWidget(waveform_container)
-
-        zoom_layout = QVBoxLayout()
-        zoom_layout.setContentsMargins(4, 4, 4, 4)
+        zoom_col = QVBoxLayout()
+        zoom_col.setContentsMargins(0, 10, 0, 10)
+        zoom_col.setSpacing(5)
+        
         self.btn_zoom_in = QPushButton("+")
+        self.btn_zoom_in.setProperty("class", "circle-btn")
         self.btn_zoom_in.setFixedSize(30, 30)
-        self.btn_zoom_in.setObjectName("ZoomButton")
         self.btn_zoom_in.clicked.connect(self.waveform_widget.zoom_in)
-        zoom_layout.addWidget(self.btn_zoom_in)
+        zoom_col.addWidget(self.btn_zoom_in)
 
         self.btn_zoom_out = QPushButton("-")
+        self.btn_zoom_out.setProperty("class", "circle-btn")
         self.btn_zoom_out.setFixedSize(30, 30)
-        self.btn_zoom_out.setObjectName("ZoomButton")
         self.btn_zoom_out.clicked.connect(self.waveform_widget.zoom_out)
-        zoom_layout.addWidget(self.btn_zoom_out)
-
-        zoom_layout.addStretch()
-        top_container.addLayout(zoom_layout)
-
+        zoom_col.addWidget(self.btn_zoom_out)
+        
+        zoom_col.addStretch()
+        top_layout.addLayout(zoom_col)
+        
         self.main_layout.addWidget(self.top_frame)
 
-        # MIDDLE: two boxes
-        self.middle_frame = QFrame()
-        self.middle_layout = QHBoxLayout()
-        self.middle_layout.setContentsMargins(0, 0, 0, 0)
-        self.middle_frame.setLayout(self.middle_layout)
+        # ── MIDDLE AREA ───────────────────────────────────────────────
+        middle_container = QHBoxLayout()
+        middle_container.setSpacing(15)
+        
+        # --- LEFT COLUMN (40% Width) -> CHORD DIAGRAM BOX ---
+        left_col = QVBoxLayout()
+        left_col.setSpacing(0) 
+        
+        self.finder_frame = QFrame()
+        self.finder_frame.setProperty("class", "panel")
+        find_layout = QVBoxLayout()
+        find_layout.setContentsMargins(15, 12, 15, 15)
+        self.finder_frame.setLayout(find_layout)
+        
+        find_layout.addStretch(1)
+        lbl_find = QLabel("CHORD DIAGRAM")
+        lbl_find.setObjectName("SectionTitle")
+        lbl_find.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        find_layout.addWidget(lbl_find)
+        
+        self.diagram_widget = ChordDiagramWidget()
+        self.diagram_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.diagram_widget.setMinimumHeight(300)
+        self.diagram_widget.set_chord("") 
+        find_layout.addWidget(self.diagram_widget, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        find_layout.addSpacing(10)
 
-        # LEFT BIG BOX: chords detected + controls
-        self.left_combo_panel = QFrame()
-        self.left_combo_panel.setProperty("class", "panel")
-        left_combo_layout = QHBoxLayout()
-        left_combo_layout.setContentsMargins(20, 20, 20, 20)
-        left_combo_layout.setSpacing(30)
-        self.left_combo_panel.setLayout(left_combo_layout)
+        # Chord Type Buttons (Renamed to Beginner / Advanced)
+        type_layout = QHBoxLayout()
+        type_layout.setSpacing(10)
+        
+        self.btn_beginner = QPushButton("Beginner")
+        self.btn_beginner.setProperty("class", "pill-btn") 
+        self.btn_beginner.setCheckable(True)
+        self.btn_beginner.setChecked(True)
+        self.btn_beginner.clicked.connect(lambda: self.set_chord_type_mode("beginner"))
+        type_layout.addWidget(self.btn_beginner)
+        
+        self.btn_advanced = QPushButton("Advanced")
+        self.btn_advanced.setProperty("class", "pill-btn")
+        self.btn_advanced.setCheckable(True)
+        self.btn_advanced.clicked.connect(lambda: self.set_chord_type_mode("advanced"))
+        type_layout.addWidget(self.btn_advanced)
+        
+        grp = QButtonGroup(self)
+        grp.addButton(self.btn_beginner)
+        grp.addButton(self.btn_advanced)
+        grp.setExclusive(True)
+        
+        find_layout.addLayout(type_layout)
+        find_layout.addStretch(1)
+        
+        left_col.addWidget(self.finder_frame)
+        middle_container.addLayout(left_col, stretch=4)
 
-        # --- Chords detected
-        chords_container = QWidget()
-        chords_layout = QVBoxLayout()
-        chords_layout.setContentsMargins(0, 0, 20, 0)
-        chords_container.setLayout(chords_layout)
-        chords_container.setFixedWidth(320)
+        # --- RIGHT COLUMN (60% Width) -> CHORDS + CONTROLS ---
+        right_col = QVBoxLayout()
+        right_col.setSpacing(10)
 
-        lbl_detected = QLabel("CHORDS DETECTED")
-        lbl_detected.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_detected.setObjectName("SectionTitle")
-        chords_layout.addWidget(lbl_detected)
-
+        # 1. Detected Chords
+        self.detected_frame = QFrame()
+        self.detected_frame.setProperty("class", "panel")
+        det_layout = QVBoxLayout()
+        det_layout.setContentsMargins(15, 12, 15, 12)
+        self.detected_frame.setLayout(det_layout)
+        
+        lbl_det = QLabel("CHORDS DETECTED")
+        lbl_det.setObjectName("SectionTitle")
+        lbl_det.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        det_layout.addWidget(lbl_det)
+        
         self.chord_grid = QGridLayout()
-        chords_layout.addLayout(self.chord_grid)
-        chords_layout.addStretch()
+        self.chord_grid.setSpacing(6)
+        det_layout.addLayout(self.chord_grid)
+        det_layout.addStretch()
+        right_col.addWidget(self.detected_frame, stretch=3) 
 
-        left_combo_layout.addWidget(chords_container)
+        # 2. Performance Controls (Centralized)
+        self.controls_frame = QFrame()
+        self.controls_frame.setProperty("class", "panel")
+        
+        ctrl_layout = QVBoxLayout()
+        ctrl_layout.setSpacing(5)
+        ctrl_layout.setContentsMargins(30, 20, 30, 20)
+        self.controls_frame.setLayout(ctrl_layout)
 
-        # --- Controls
-        controls_container = QWidget()
-        controls_outer_layout = QVBoxLayout()
-        controls_outer_layout.setContentsMargins(0, 0, 0, 0)
-        controls_outer_layout.setSpacing(10)
-        controls_container.setLayout(controls_outer_layout)
+        lbl_perf = QLabel("PERFORMANCE CONTROLS")
+        lbl_perf.setObjectName("SectionTitle")
+        lbl_perf.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ctrl_layout.addWidget(lbl_perf)
 
-        center_layout = QGridLayout()
-        center_layout.setVerticalSpacing(12)
-        center_layout.setHorizontalSpacing(20)
-
-        # KEY SHIFT
-        key_label = QLabel("KEY SHIFT")
-        key_label.setObjectName("ControlLabel")
-        center_layout.addWidget(
-            key_label, 0, 0, alignment=Qt.AlignmentFlag.AlignRight
-        )
-
-        key_container = QWidget()
-        key_layout = QHBoxLayout()
-        key_layout.setContentsMargins(0, 0, 0, 0)
-        key_layout.setSpacing(8)
-        key_container.setLayout(key_layout)
-
-        btn_key_down = QPushButton("-")
-        btn_key_down.setFixedSize(25, 25)
-        btn_key_down.clicked.connect(self.key_down)
-        key_layout.addWidget(btn_key_down)
-
+        # -- CENTRALIZATION LOGIC --
+        center_h = QHBoxLayout()
+        center_h.addStretch()
+        
+        grid = QGridLayout()
+        grid.setVerticalSpacing(18)
+        grid.setHorizontalSpacing(15)
+        
+        # Row 0: KEY SHIFT
+        grid.addWidget(QLabel("KEY SHIFT"), 0, 0, alignment=Qt.AlignmentFlag.AlignRight)
+        self.btn_key_down = QPushButton("-")
+        self.btn_key_down.setProperty("class", "circle-btn")
+        self.btn_key_down.clicked.connect(self.key_down)
+        grid.addWidget(self.btn_key_down, 0, 1)
         self.lbl_key = QLabel("0")
         self.lbl_key.setObjectName("ValueLabel")
+        self.lbl_key.setFixedWidth(100)
         self.lbl_key.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        key_layout.addWidget(self.lbl_key)
+        grid.addWidget(self.lbl_key, 0, 2)
+        self.btn_key_up = QPushButton("+")
+        self.btn_key_up.setProperty("class", "circle-btn")
+        self.btn_key_up.clicked.connect(self.key_up)
+        grid.addWidget(self.btn_key_up, 0, 3)
 
-        btn_key_up = QPushButton("+")
-        btn_key_up.setFixedSize(25, 25)
-        btn_key_up.clicked.connect(self.key_up)
-        key_layout.addWidget(btn_key_up)
-
-        center_layout.addWidget(key_container, 0, 1)
-
-        # TEMPO
-        tempo_label = QLabel("TEMPO")
-        tempo_label.setObjectName("ControlLabel")
-        center_layout.addWidget(
-            tempo_label, 1, 0, alignment=Qt.AlignmentFlag.AlignRight
-        )
-
-        tempo_container = QWidget()
-        tempo_layout = QHBoxLayout()
-        tempo_layout.setContentsMargins(0, 0, 0, 0)
-        tempo_layout.setSpacing(8)
-        tempo_container.setLayout(tempo_layout)
-
-        btn_slower = QPushButton("-")
-        btn_slower.setFixedSize(25, 25)
-        btn_slower.clicked.connect(self.slow_down)
-        tempo_layout.addWidget(btn_slower)
-
+        # Row 1: TEMPO
+        grid.addWidget(QLabel("TEMPO"), 1, 0, alignment=Qt.AlignmentFlag.AlignRight)
+        self.btn_slow = QPushButton("-")
+        self.btn_slow.setProperty("class", "circle-btn")
+        self.btn_slow.clicked.connect(self.slow_down)
+        grid.addWidget(self.btn_slow, 1, 1)
         self.lbl_tempo = QLabel("0 BPM")
         self.lbl_tempo.setObjectName("ValueLabel")
+        self.lbl_tempo.setFixedWidth(100) 
         self.lbl_tempo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        tempo_layout.addWidget(self.lbl_tempo)
+        grid.addWidget(self.lbl_tempo, 1, 2)
+        self.btn_fast = QPushButton("+")
+        self.btn_fast.setProperty("class", "circle-btn")
+        self.btn_fast.clicked.connect(self.speed_up)
+        grid.addWidget(self.btn_fast, 1, 3)
 
-        btn_faster = QPushButton("+")
-        btn_faster.setFixedSize(25, 25)
-        btn_faster.clicked.connect(self.speed_up)
-        tempo_layout.addWidget(btn_faster)
-
-        center_layout.addWidget(tempo_container, 1, 1)
-
-        # CHORD TYPE
-        chord_type_label = QLabel("CHORD TYPE")
-        chord_type_label.setObjectName("ControlLabel")
-        center_layout.addWidget(
-            chord_type_label, 2, 0, alignment=Qt.AlignmentFlag.AlignRight
-        )
-        center_layout.addWidget(
-            QLabel("Open | Power"), 2, 1,
-            alignment=Qt.AlignmentFlag.AlignLeft,
-        )
-
-        # CAPO
-        capo_label = QLabel("CAPO")
-        capo_label.setObjectName("ControlLabel")
-        center_layout.addWidget(
-            capo_label, 3, 0, alignment=Qt.AlignmentFlag.AlignRight
-        )
-
-        capo_container = QWidget()
-        capo_layout = QHBoxLayout()
-        capo_layout.setContentsMargins(0, 0, 0, 0)
-        capo_layout.setSpacing(8)
-        capo_container.setLayout(capo_layout)
-
-        btn_capo_down = QPushButton("-")
-        btn_capo_down.setFixedSize(25, 25)
-        btn_capo_down.clicked.connect(self.capo_down)
-        capo_layout.addWidget(btn_capo_down)
-
+        # Row 2: CAPO
+        grid.addWidget(QLabel("CAPO"), 2, 0, alignment=Qt.AlignmentFlag.AlignRight)
+        self.btn_capo_down = QPushButton("-")
+        self.btn_capo_down.setProperty("class", "circle-btn")
+        self.btn_capo_down.clicked.connect(self.capo_down)
+        grid.addWidget(self.btn_capo_down, 2, 1)
         self.lbl_capo = QLabel("0")
         self.lbl_capo.setObjectName("ValueLabel")
+        self.lbl_capo.setFixedWidth(100) 
         self.lbl_capo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        capo_layout.addWidget(self.lbl_capo)
+        grid.addWidget(self.lbl_capo, 2, 2)
+        self.btn_capo_up = QPushButton("+")
+        self.btn_capo_up.setProperty("class", "circle-btn")
+        self.btn_capo_up.clicked.connect(self.capo_up)
+        grid.addWidget(self.btn_capo_up, 2, 3)
+        
+        center_h.addLayout(grid)
+        center_h.addStretch() 
 
-        btn_capo_up = QPushButton("+")
-        btn_capo_up.setFixedSize(25, 25)
-        btn_capo_up.clicked.connect(self.capo_up)
-        capo_layout.addWidget(btn_capo_up)
+        ctrl_layout.addStretch() 
+        ctrl_layout.addLayout(center_h)
+        ctrl_layout.addStretch() 
+        
+        right_col.addWidget(self.controls_frame, stretch=5)
+        
+        middle_container.addLayout(right_col, stretch=6)
+        self.main_layout.addLayout(middle_container)
 
-        center_layout.addWidget(capo_container, 3, 1)
+        # ── BOTTOM: The "Guitar Bridge" ───────────────────────────────
+        self.bridge_frame = QFrame()
+        self.bridge_frame.setObjectName("BridgeFrame")
+        self.bridge_frame.setFixedHeight(80) 
+        
+        bridge_layout = QHBoxLayout()
+        bridge_layout.setContentsMargins(40, 10, 40, 10)
+        bridge_layout.setSpacing(32)
+        self.bridge_frame.setLayout(bridge_layout)
 
-        controls_outer_layout.addStretch()
-        controls_outer_layout.addLayout(center_layout)
-        controls_outer_layout.setAlignment(center_layout, Qt.AlignmentFlag.AlignHCenter)
-        controls_outer_layout.addStretch()
-
-        left_combo_layout.addWidget(controls_container)
-        self.middle_layout.addWidget(self.left_combo_panel, stretch=2)
-
-        # RIGHT BOX: chord finder
-        self.right_panel = QFrame()
-        self.right_panel.setProperty("class", "panel")
-        self.right_panel.setFixedWidth(250)
-        right_layout = QVBoxLayout()
-        self.right_panel.setLayout(right_layout)
-
-        lbl_finder = QLabel("CHORD FINDER")
-        lbl_finder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_finder.setObjectName("SectionTitle")
-        right_layout.addWidget(lbl_finder)
-
-        self.diagram_widget = ChordDiagramWidget()
-        right_layout.addWidget(self.diagram_widget)
-
-        self.middle_layout.addWidget(self.right_panel, stretch=1)
-        self.main_layout.addWidget(self.middle_frame)
-
-        # BOTTOM: transport + info
-        self.bottom_frame = QFrame()
-        self.bottom_frame.setFixedHeight(80)
-        self.bottom_frame.setProperty("class", "panel")
-        bot_layout = QHBoxLayout()
-        self.bottom_frame.setLayout(bot_layout)
-
-        self.btn_load = QPushButton("Load Song 📂")
-        self.btn_load.setFixedWidth(150)
+        # Load Button
+        self.btn_load = QPushButton("Load Song")
+        self.btn_load.setProperty("class", "pill-btn")
+        self.btn_load.setFixedSize(130, 36)
         self.btn_load.clicked.connect(self.load_song)
-        bot_layout.addWidget(self.btn_load)
+        bridge_layout.addWidget(self.btn_load)
+        
+        bridge_layout.addStretch()
 
-        bot_layout.addStretch()
-
+        # Playback Controls
         self.btn_play = QPushButton()
         self.btn_play.setObjectName("TransportButton")
         self.btn_play.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
         self.btn_play.clicked.connect(self.play_audio)
-        bot_layout.addWidget(self.btn_play)
-
+        
         self.btn_pause = QPushButton()
         self.btn_pause.setObjectName("TransportButton")
         self.btn_pause.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
         self.btn_pause.clicked.connect(self.pause_audio)
-        bot_layout.addWidget(self.btn_pause)
-
+        
         self.btn_stop = QPushButton()
         self.btn_stop.setObjectName("TransportButton")
         self.btn_stop.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop))
         self.btn_stop.clicked.connect(self.stop_audio)
-        bot_layout.addWidget(self.btn_stop)
+        
+        bridge_layout.addWidget(self.btn_play)
+        bridge_layout.addWidget(self.btn_pause)
+        bridge_layout.addWidget(self.btn_stop)
+        
+        bridge_layout.addStretch()
+        
+        # Status Label
+        self.label_info = QLabel("No Song Loaded")
+        self.label_info.setStyleSheet("color: #f2e7d0; font-size: 11px; font-style: italic;")
+        bridge_layout.addWidget(self.label_info)
 
-        bot_layout.addStretch()
+        self.main_layout.addWidget(self.bridge_frame)
 
-        self.label_info = QLabel("No song loaded")
-        self.label_info.setObjectName("InfoLabel")
-        bot_layout.addWidget(self.label_info)
-
-        self.main_layout.addWidget(self.bottom_frame)
-
-        # Global arrow-key shortcuts
+        # Global Shortcuts
         self.shortcut_left = QShortcut(QKeySequence(Qt.Key.Key_Left), self)
         self.shortcut_left.activated.connect(lambda: self.nudge_playhead(-1.0))
 
@@ -449,6 +531,10 @@ class RiffStationWindow(QMainWindow):
         self.shortcut_right.activated.connect(lambda: self.nudge_playhead(1.0))
 
     # ---------- Chord helpers ----------
+
+    def set_chord_type_mode(self, mode: str):
+        self.chord_type_mode = mode
+        self.diagram_widget.set_mode(mode)
 
     def transpose_chord(self, chord_name, semitone_shift):
         root = chord_name.split()[0]
@@ -492,6 +578,7 @@ class RiffStationWindow(QMainWindow):
             self.original_bpm = self.loader_thread.detected_bpm
             self.original_file_path = self.loader_thread.file_path
 
+            # reset state
             self.playback_rate = 1.0
             self.key_shift = 0
             self.capo = 0
@@ -499,14 +586,17 @@ class RiffStationWindow(QMainWindow):
             self.lbl_capo.setText("0")
             self.update_tempo_display()
 
-            if self.engine.y is not None:
-                self.waveform_widget.plot_audio(self.engine.y, self.engine.sr)
+            # ✅ use y_stereo now (WaveformView can handle stereo)
+            if self.engine.y_stereo is not None:
+                self.waveform_widget.plot_audio(self.engine.y_stereo, self.engine.sr)
 
+            # chords (already in original key)
             self.refresh_display_chords()
 
+            # audio player uses the ORIGINAL file path
             self.player.setSource(QUrl.fromLocalFile(self.original_file_path))
             self.player.setPlaybackRate(self.playback_rate)
-            self.label_info.setText("Track Loaded Successfully")
+            self.label_info.setText("Ready to Rock")
         else:
             self.label_info.setText("Error loading file.")
 
@@ -519,9 +609,10 @@ class RiffStationWindow(QMainWindow):
 
         row, col = 0, 0
         max_cols = 4
+        
         for chord in unique_chords:
             lbl = QLabel(chord)
-            lbl.setProperty("class", "chord-chip")
+            lbl.setProperty("class", "ChordChip")
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.chord_grid.addWidget(lbl, row, col)
             col += 1
@@ -583,26 +674,21 @@ class RiffStationWindow(QMainWindow):
     # ---------- Pitch shift audio switching ----------
 
     def apply_audio_shift(self):
-        """
-        key_shift == 0  -> original file
-        key_shift != 0  -> temp pitch-shifted WAV
-        For now: restart from beginning so you clearly hear the change.
-        """
         if not self.original_file_path:
             self.label_info.setText("No track loaded")
             return
 
+        # key_shift 0 => original audio
         if self.key_shift == 0:
-            # back to original
             print("Reverting to original audio file (no pitch processing).")
             self.engine.cleanup_temp_file()
             new_source_path = self.original_file_path
             self.label_info.setText("Back to original key")
         else:
-            # use shifted temp file
             self.label_info.setText(
                 f"Shifting audio by {self.key_shift:+d} semitones..."
             )
+            QApplication.processEvents() # Force UI update before heavy lift
             temp_file_path = self.engine.generate_shifted_file(self.key_shift)
             if not temp_file_path:
                 self.label_info.setText("Error shifting audio.")
@@ -611,11 +697,17 @@ class RiffStationWindow(QMainWindow):
             print(f"Using shifted audio: {new_source_path}")
             self.label_info.setText(f"Key shifted to {self.key_shift:+d}")
 
+        # reload into QMediaPlayer
+        current_pos = self.player.position()
+        was_playing = self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
+        
         self.player.stop()
         self.player.setSource(QUrl.fromLocalFile(new_source_path))
         self.player.setPlaybackRate(self.playback_rate)
-        self.player.setPosition(0)
-        self.player.play()
+        self.player.setPosition(current_pos)
+        
+        if was_playing:
+            self.player.play()
 
     # ---------- Playback / navigation ----------
 
@@ -667,10 +759,12 @@ class RiffStationWindow(QMainWindow):
         super().closeEvent(event)
 
 
-# ---------- entry point for top-level main.py ----------
-
 def run_app():
     app = QApplication(sys.argv)
+    
+    # Set a fusion style to ensure standard controls look decent before our stylesheet applies
+    app.setStyle("Fusion")
+    
     window = RiffStationWindow()
     window.show()
     sys.exit(app.exec())
