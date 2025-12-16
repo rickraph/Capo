@@ -1,6 +1,6 @@
 import sys
 import os
-
+from PyQt6.QtGui import QFontDatabase
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QLabel,
     QVBoxLayout, QHBoxLayout, QGridLayout, QWidget,
@@ -15,6 +15,16 @@ from .audio_engine import AudioEngine
 from .waveform_view import WaveformView
 from .chord_diagram import ChordDiagramWidget
 
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+
+    return os.path.join(base_path, relative_path)
 
 # ---------- Worker for background loading / analysis ----------
 
@@ -61,26 +71,26 @@ class RiffStationWindow(QMainWindow):
         self.original_bpm = 0.0
         self.key_shift = 0
         self.capo = 0
-        self.chord_type_mode = "beginner"  # Changed default to 'beginner'
+        self.chord_type_mode = "beginner"
         self.notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
         self.original_file_path = None
         self.chords = []
         self.display_chords = []
-
+        
         self.timer = QTimer()
         self.timer.setInterval(50) 
         self.timer.timeout.connect(self.update_game_loop)
 
-        # --- WINDOW SETUP ---
-        self.setWindowTitle("Capo")
-        self.setFixedSize(1200, 720)
-        self.setMinimumSize(1200, 720)
-        self.setMaximumSize(1200, 720)
+        # --- WINDOW SETUP (Standard OS Frame) ---
+        self.setWindowTitle("Capo | Unlock the Music") # Sets text in the white OS bar
+        self.setMaximumSize(1000, 720)
         
+        # Standard window flags ensuring minimize/close buttons exist
         self.setWindowFlags(
             Qt.WindowType.Window | 
             Qt.WindowType.WindowCloseButtonHint | 
             Qt.WindowType.WindowMinimizeButtonHint |
+            Qt.WindowType.WindowMaximizeButtonHint |
             Qt.WindowType.CustomizeWindowHint |
             Qt.WindowType.WindowTitleHint
         )
@@ -88,12 +98,9 @@ class RiffStationWindow(QMainWindow):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         # --- PATH SETUP ---
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        assets_path = os.path.join(base_dir, "assets")
-        assets_path = assets_path.replace('\\', '/') 
-
-        print(f"Loading assets from: {assets_path}")
-
+        assets_path = resource_path("assets")
+        assets_path = assets_path.replace('\\', '/')
+        
         # --- STYLESHEET ---
         self.setStyleSheet(f"""
             QMainWindow {{
@@ -111,7 +118,7 @@ class RiffStationWindow(QMainWindow):
                 background-position: center;
                 background-repeat: no-repeat;
                 background-size: 100% 100%;
-                border: 5px solid #d9b15c; /* Gold Border */
+                border: 5px solid #d9b15c; /* Gold Border back */
                 border-radius: 30px;
             }}
 
@@ -149,8 +156,9 @@ class RiffStationWindow(QMainWindow):
             }}
 
             QLabel#WindowTitle {{
-                color: #f4f1e6;
-                font-size: 16px;
+                font-family: 'Rosaline';
+                color: #331912; /* Back to GOLD */
+                font-size: 38px; /* Back to larger size */
                 font-weight: 900;
                 letter-spacing: 1px;
                 text-shadow: 1px 1px 3px #000;
@@ -158,11 +166,12 @@ class RiffStationWindow(QMainWindow):
             
             QLabel#SectionTitle {{
                 color: #f2d48a;
-                font-size: 12px;
+                font-size: 18px;  /* <--- CHANGED FROM 12px TO 18px */
+                font-weight: 900; /* Added bold weight */
                 text-transform: uppercase;
                 letter-spacing: 2px;
                 border-bottom: 2px solid #f2d48a;
-                padding-bottom: 4px;
+                padding-bottom: 8px; /* Increased padding slightly */
                 margin-bottom: 8px;
                 text-shadow: 1px 1px 2px #000;
             }}
@@ -189,7 +198,7 @@ class RiffStationWindow(QMainWindow):
                 text-shadow: 0px 0px 1px rgba(255,255,255,0.4);
             }}
 
-            /* --- KNOBS / CIRCLE BUTTONS --- */
+            /* --- CIRCLE BUTTONS --- */
             QPushButton.circle-btn {{
                 background-image: url({assets_path}/knob_gold.png);
                 background-position: center;
@@ -221,14 +230,13 @@ class RiffStationWindow(QMainWindow):
                 font-weight: 900;
                 padding: 6px 15px;
                 font-size: 12px;
-                min-width: 90px; /* Slightly wider for "Advanced" text */
+                min-width: 90px;
             }}
             QPushButton.pill-btn:pressed {{
                 padding-top: 3px;
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #e9dfcc, stop:1 #cbbda3);
             }}
-            
             QPushButton.pill-btn:checked {{
                 color: #000;
                 border: 2px solid #D4AF37;
@@ -270,17 +278,20 @@ class RiffStationWindow(QMainWindow):
         self.setCentralWidget(main_widget)
         
         self.main_layout = QVBoxLayout()
-        self.main_layout.setSpacing(10)
+        # Restore original margins
         self.main_layout.setContentsMargins(20, 15, 20, 15) 
+        self.main_layout.setSpacing(10)
         main_widget.setLayout(self.main_layout)
 
-        # Title Label
-        title_lbl = QLabel("Capo")
+        # Title Label (Back inside the main layout)
+        title_lbl = QLabel("Capo") 
         title_lbl.setObjectName("WindowTitle")
-        title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter) 
         self.main_layout.addWidget(title_lbl)
 
-        # ── TOP: Waveform (170px) ─────────────────────────────────────
+        # ── MAIN CONTENT AREA (Waveform, Chords, Controls) ────────────────
+        
+        # Waveform Frame
         self.top_frame = QFrame()
         self.top_frame.setObjectName("WaveformFrame")
         self.top_frame.setFixedHeight(170) 
@@ -315,11 +326,11 @@ class RiffStationWindow(QMainWindow):
         
         self.main_layout.addWidget(self.top_frame)
 
-        # ── MIDDLE AREA ───────────────────────────────────────────────
+        # MIDDLE AREA
         middle_container = QHBoxLayout()
         middle_container.setSpacing(15)
-        
-        # --- LEFT COLUMN (40% Width) -> CHORD DIAGRAM BOX ---
+
+        # --- LEFT COLUMN (Chord Diagram - Nudged Right) ---
         left_col = QVBoxLayout()
         left_col.setSpacing(0) 
         
@@ -330,20 +341,32 @@ class RiffStationWindow(QMainWindow):
         self.finder_frame.setLayout(find_layout)
         
         find_layout.addStretch(1)
+        
+        # Heading (Centered)
         lbl_find = QLabel("CHORD DIAGRAM")
         lbl_find.setObjectName("SectionTitle")
         lbl_find.setAlignment(Qt.AlignmentFlag.AlignCenter)
         find_layout.addWidget(lbl_find)
         
+        # -- CONTENT WRAPPER --
+        shift_h = QHBoxLayout()
+        
+        # *** FIX: Added 40px padding to the LEFT.
+        # This pushes the content slightly to the RIGHT.
+        # Format: (Left, Top, Right, Bottom)
+        shift_h.setContentsMargins(40, 0, 0, 0)
+        
+        content_v = QVBoxLayout()
+        content_v.setSpacing(10)
+
+        # Diagram
         self.diagram_widget = ChordDiagramWidget()
         self.diagram_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.diagram_widget.setMinimumHeight(300)
         self.diagram_widget.set_chord("") 
-        find_layout.addWidget(self.diagram_widget, alignment=Qt.AlignmentFlag.AlignCenter)
+        content_v.addWidget(self.diagram_widget, alignment=Qt.AlignmentFlag.AlignCenter)
         
-        find_layout.addSpacing(10)
-
-        # Chord Type Buttons (Renamed to Beginner / Advanced)
+        # Buttons
         type_layout = QHBoxLayout()
         type_layout.setSpacing(10)
         
@@ -365,17 +388,21 @@ class RiffStationWindow(QMainWindow):
         grp.addButton(self.btn_advanced)
         grp.setExclusive(True)
         
-        find_layout.addLayout(type_layout)
+        content_v.addLayout(type_layout)
+        
+        shift_h.addLayout(content_v)
+        
+        find_layout.addLayout(shift_h)
         find_layout.addStretch(1)
         
         left_col.addWidget(self.finder_frame)
         middle_container.addLayout(left_col, stretch=4)
 
-        # --- RIGHT COLUMN (60% Width) -> CHORDS + CONTROLS ---
+        # Right Column
         right_col = QVBoxLayout()
         right_col.setSpacing(10)
 
-        # 1. Detected Chords
+        # Detected Chords
         self.detected_frame = QFrame()
         self.detected_frame.setProperty("class", "panel")
         det_layout = QVBoxLayout()
@@ -394,77 +421,105 @@ class RiffStationWindow(QMainWindow):
         right_col.addWidget(self.detected_frame, stretch=3) 
 
         # 2. Performance Controls (Centralized)
+        # 2. Performance Controls (Centralized & Shifted Left)
         self.controls_frame = QFrame()
         self.controls_frame.setProperty("class", "panel")
         
         ctrl_layout = QVBoxLayout()
-        ctrl_layout.setSpacing(5)
+        ctrl_layout.setSpacing(15) 
+        # Keep these margins symmetric so the underline looks good
         ctrl_layout.setContentsMargins(30, 20, 30, 20)
         self.controls_frame.setLayout(ctrl_layout)
 
+        # --- MAIN SECTION HEADING ---
         lbl_perf = QLabel("PERFORMANCE CONTROLS")
         lbl_perf.setObjectName("SectionTitle")
         lbl_perf.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ctrl_layout.addWidget(lbl_perf)
 
-        # -- CENTRALIZATION LOGIC --
+        # -- CONTENT LAYOUT --
+        # We use a separate layout for the buttons so we can squeeze it
         center_h = QHBoxLayout()
-        center_h.addStretch()
+        
+        # *** FIX: Add 80px padding to the RIGHT side only.
+        # This pushes the "visual center" of the controls to the LEFT.
+        # Format: (Left, Top, Right, Bottom)
+        center_h.setContentsMargins(0, 0, 80, 0)
         
         grid = QGridLayout()
-        grid.setVerticalSpacing(18)
-        grid.setHorizontalSpacing(15)
+        grid.setVerticalSpacing(20)
+        grid.setHorizontalSpacing(20)
         
-        # Row 0: KEY SHIFT
-        grid.addWidget(QLabel("KEY SHIFT"), 0, 0, alignment=Qt.AlignmentFlag.AlignRight)
+        row_heading_style = "font-size: 15px; font-weight: 900; color: #f2d48a;"
+
+        # --- Row 0: KEY SHIFT ---
+        lbl_k = QLabel("KEY SHIFT")
+        lbl_k.setStyleSheet(row_heading_style)
+        grid.addWidget(lbl_k, 0, 0, alignment=Qt.AlignmentFlag.AlignCenter)
+        
         self.btn_key_down = QPushButton("-")
         self.btn_key_down.setProperty("class", "circle-btn")
         self.btn_key_down.clicked.connect(self.key_down)
-        grid.addWidget(self.btn_key_down, 0, 1)
+        grid.addWidget(self.btn_key_down, 0, 1, alignment=Qt.AlignmentFlag.AlignCenter)
+        
         self.lbl_key = QLabel("0")
         self.lbl_key.setObjectName("ValueLabel")
         self.lbl_key.setFixedWidth(100)
         self.lbl_key.setAlignment(Qt.AlignmentFlag.AlignCenter)
         grid.addWidget(self.lbl_key, 0, 2)
+        
         self.btn_key_up = QPushButton("+")
         self.btn_key_up.setProperty("class", "circle-btn")
         self.btn_key_up.clicked.connect(self.key_up)
-        grid.addWidget(self.btn_key_up, 0, 3)
+        grid.addWidget(self.btn_key_up, 0, 3, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Row 1: TEMPO
-        grid.addWidget(QLabel("TEMPO"), 1, 0, alignment=Qt.AlignmentFlag.AlignRight)
+        # --- Row 1: TEMPO ---
+        lbl_t = QLabel("TEMPO")
+        lbl_t.setStyleSheet(row_heading_style)
+        grid.addWidget(lbl_t, 1, 0, alignment=Qt.AlignmentFlag.AlignCenter)
+        
         self.btn_slow = QPushButton("-")
         self.btn_slow.setProperty("class", "circle-btn")
         self.btn_slow.clicked.connect(self.slow_down)
-        grid.addWidget(self.btn_slow, 1, 1)
+        grid.addWidget(self.btn_slow, 1, 1, alignment=Qt.AlignmentFlag.AlignCenter)
+        
         self.lbl_tempo = QLabel("0 BPM")
         self.lbl_tempo.setObjectName("ValueLabel")
-        self.lbl_tempo.setFixedWidth(100) 
+        self.lbl_tempo.setFixedWidth(120) 
         self.lbl_tempo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_tempo.setStyleSheet("font-size: 18px; color: #f2d48a; font-weight: 900;")
         grid.addWidget(self.lbl_tempo, 1, 2)
+        
         self.btn_fast = QPushButton("+")
         self.btn_fast.setProperty("class", "circle-btn")
         self.btn_fast.clicked.connect(self.speed_up)
-        grid.addWidget(self.btn_fast, 1, 3)
+        grid.addWidget(self.btn_fast, 1, 3, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Row 2: CAPO
-        grid.addWidget(QLabel("CAPO"), 2, 0, alignment=Qt.AlignmentFlag.AlignRight)
+        # --- Row 2: CAPO ---
+        lbl_c = QLabel("CAPO")
+        lbl_c.setStyleSheet(row_heading_style)
+        grid.addWidget(lbl_c, 2, 0, alignment=Qt.AlignmentFlag.AlignCenter)
+        
         self.btn_capo_down = QPushButton("-")
         self.btn_capo_down.setProperty("class", "circle-btn")
         self.btn_capo_down.clicked.connect(self.capo_down)
-        grid.addWidget(self.btn_capo_down, 2, 1)
+        grid.addWidget(self.btn_capo_down, 2, 1, alignment=Qt.AlignmentFlag.AlignCenter)
+        
         self.lbl_capo = QLabel("0")
         self.lbl_capo.setObjectName("ValueLabel")
         self.lbl_capo.setFixedWidth(100) 
         self.lbl_capo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         grid.addWidget(self.lbl_capo, 2, 2)
+        
         self.btn_capo_up = QPushButton("+")
         self.btn_capo_up.setProperty("class", "circle-btn")
         self.btn_capo_up.clicked.connect(self.capo_up)
-        grid.addWidget(self.btn_capo_up, 2, 3)
+        grid.addWidget(self.btn_capo_up, 2, 3, alignment=Qt.AlignmentFlag.AlignCenter)
         
+        # Add normal stretches to keep it centered within the new margin-constrained area
+        center_h.addStretch(1)
         center_h.addLayout(grid)
-        center_h.addStretch() 
+        center_h.addStretch(1)
 
         ctrl_layout.addStretch() 
         ctrl_layout.addLayout(center_h)
@@ -475,7 +530,7 @@ class RiffStationWindow(QMainWindow):
         middle_container.addLayout(right_col, stretch=6)
         self.main_layout.addLayout(middle_container)
 
-        # ── BOTTOM: The "Guitar Bridge" ───────────────────────────────
+        # BOTTOM: The "Guitar Bridge"
         self.bridge_frame = QFrame()
         self.bridge_frame.setObjectName("BridgeFrame")
         self.bridge_frame.setFixedHeight(80) 
@@ -529,6 +584,7 @@ class RiffStationWindow(QMainWindow):
 
         self.shortcut_right = QShortcut(QKeySequence(Qt.Key.Key_Right), self)
         self.shortcut_right.activated.connect(lambda: self.nudge_playhead(1.0))
+        
 
     # ---------- Chord helpers ----------
 
@@ -761,10 +817,22 @@ class RiffStationWindow(QMainWindow):
 
 def run_app():
     app = QApplication(sys.argv)
+
+    font_path = os.path.join(os.path.dirname(__file__), "assets", "fonts", "Rosaline-Regular.otf") 
+    
+    # Try to load it
+    font_id = QFontDatabase.addApplicationFont(font_path)
+    
+    # Check if it worked and print the real Family Name
+    if font_id == -1:
+        print(f"⚠️ Could not load font at: {font_path}")
+    else:
+        family_name = QFontDatabase.applicationFontFamilies(font_id)[0]
+        print(f"✅ Font loaded! Use this name in Stylesheet: '{family_name}'")
     
     # Set a fusion style to ensure standard controls look decent before our stylesheet applies
     app.setStyle("Fusion")
     
     window = RiffStationWindow()
-    window.show()
+    window.showMaximized()
     sys.exit(app.exec())
