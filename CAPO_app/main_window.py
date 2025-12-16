@@ -21,8 +21,15 @@ def resource_path(relative_path):
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
+
+        # CRITICAL FIX:
+        # In your build.yml, you mapped "CAPO_app/assets" to just "assets".
+        # So if the code asks for "CAPO_app/assets/...", we must change it to "assets/..."
+        if "CAPO_app/assets" in relative_path:
+            relative_path = relative_path.replace("CAPO_app/assets", "assets")
+
     except Exception:
-        base_path = os.path.dirname(os.path.abspath(__file__))
+        base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
 
@@ -818,17 +825,14 @@ class RiffStationWindow(QMainWindow):
 def run_app():
     app = QApplication(sys.argv)
 
-    font_path = os.path.join(os.path.dirname(__file__), "assets", "fonts", "Rosaline-Regular.otf") 
-    
-    # Try to load it
+    font_path = resource_path("CAPO_app/assets/fonts/Rosaline.ttf")
     font_id = QFontDatabase.addApplicationFont(font_path)
-    
-    # Check if it worked and print the real Family Name
-    if font_id == -1:
-        print(f"⚠️ Could not load font at: {font_path}")
+
+    # Debug print to check if it loaded (optional)
+    if font_id < 0:
+        print(f"Error: Could not load font at {font_path}")
     else:
-        family_name = QFontDatabase.applicationFontFamilies(font_id)[0]
-        print(f"✅ Font loaded! Use this name in Stylesheet: '{family_name}'")
+        print(f"Loaded font: {QFontDatabase.applicationFontFamilies(font_id)}")
     
     # Set a fusion style to ensure standard controls look decent before our stylesheet applies
     app.setStyle("Fusion")
