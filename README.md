@@ -4,7 +4,7 @@
 
 Created as a modern, Linux-friendly alternative to legacy tools like *Riffstation*, Capo runs natively on **Windows, macOS and Linux**.
 
-![Capo Main Interface](assets/screenshot.png)
+![Capo Main Interface]([assets/screenshot.png](https://github.com/rickraph/Capo/blob/main/CAPO_app/assets/screenshot.png))
 
 
 ## 🚀 Features
