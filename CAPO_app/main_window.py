@@ -62,8 +62,20 @@ class AudioLoaderWorker(QThread):
 # ---------- Main Window ----------
 
 class RiffStationWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, custom_font_name="Segoe UI"):
         super().__init__()
+
+        # --- 1. DEFINE COMMON ASSETS PATH (The Fix) ---
+        # This logic handles the difference between "dev mode" and "installed app"
+        if hasattr(sys, '_MEIPASS'):
+            # If running as a compiled app (PyInstaller), assets are in the temp folder
+            base_dir = os.path.join(sys._MEIPASS, "assets")
+        else:
+            # If running locally on your computer, assets are in "CAPO_app/assets"
+            base_dir = os.path.abspath("CAPO_app/assets")
+            
+        # Store it as a class variable (self.assets_path) to use everywhere
+        self.assets_path = base_dir.replace("\\", "/")
 
         # Engine / audio state
         self.engine = AudioEngine()
@@ -88,31 +100,28 @@ class RiffStationWindow(QMainWindow):
         self.timer.setInterval(50) 
         self.timer.timeout.connect(self.update_game_loop)
 
-        # --- WINDOW SETUP (Standard OS Frame) ---
-        self.setWindowTitle("Capo | Unlock the Music") # Sets text in the white OS bar
-        self.setMaximumSize(1000, 720)
+        # --- WINDOW SETUP ---
+        self.setWindowTitle("Capo | Unlock the Music")
         
-        # Standard window flags ensuring minimize/close buttons exist
+        # REMOVED: self.setMaximumSize(1000, 720) <-- Removed so you can maximize
+        self.setFixedSize(1333, 937)
+        #self.setMinimumSize(1000, 720) 
+        self.resize(1333, 937)
+        
         self.setWindowFlags(
             Qt.WindowType.Window | 
             Qt.WindowType.WindowCloseButtonHint | 
-            Qt.WindowType.WindowMinimizeButtonHint |
-            Qt.WindowType.WindowMaximizeButtonHint |
             Qt.WindowType.CustomizeWindowHint |
             Qt.WindowType.WindowTitleHint
         )
         
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-
-        # --- PATH SETUP ---
-        assets_path = resource_path("assets")
-        assets_path = assets_path.replace('\\', '/')
         
         # --- STYLESHEET ---
         self.setStyleSheet(f"""
             QMainWindow {{
                 background-color: #0c0704;
-                background-image: url({assets_path}/border_shell.png);
+                background-image: url({self.assets_path}/border_shell.png);
                 background-position: center;
                 background-repeat: no-repeat;
                 background-size: cover;
@@ -121,7 +130,7 @@ class RiffStationWindow(QMainWindow):
 
             QWidget#CentralWidget {{
                 background-color: #b86e28;
-                background-image: url({assets_path}/bg_main_wood.jpg);
+                background-image: url({self.assets_path}/bg_main_wood.jpg);
                 background-position: center;
                 background-repeat: no-repeat;
                 background-size: 100% 100%;
@@ -130,7 +139,7 @@ class RiffStationWindow(QMainWindow):
             }}
 
             QFrame[class="panel"] {{
-                background-image: url({assets_path}/panel_wood.png);
+                background-image: url({self.assets_path}/panel_wood.png);
                 background-position: center;
                 background-repeat: no-repeat;
                 background-size: 100% 100%;
@@ -163,7 +172,7 @@ class RiffStationWindow(QMainWindow):
             }}
 
             QLabel#WindowTitle {{
-                font-family: 'Rosaline';
+                font-family: "{custom_font_name}";
                 color: #331912; /* Back to GOLD */
                 font-size: 38px; /* Back to larger size */
                 font-weight: 900;
@@ -192,7 +201,7 @@ class RiffStationWindow(QMainWindow):
             }}
 
             QLabel[class="ChordChip"] {{
-                background-image: url({assets_path}/chord_chip.png);
+                background-image: url({self.assets_path}/chord_chip.png);
                 background-position: center;
                 background-size: 100% 100%;
                 background-repeat: no-repeat;
@@ -207,32 +216,31 @@ class RiffStationWindow(QMainWindow):
 
             /* --- CIRCLE BUTTONS --- */
             QPushButton.circle-btn {{
-                background-image: url({assets_path}/knob_gold.png);
-                background-position: center;
-                background-repeat: no-repeat;
-                background-size: cover;
-                background-color: transparent;
-                border: none;
-                min-width: 32px;
-                max-width: 32px;
-                min-height: 32px;
-                max-height: 32px;
-                border-radius: 16px;
-                color: #3E2723;
+                background-color: #d9b15c; /* Gold Color */
+                color: #3e2723;            /* Dark Brown Text */
+                border: 2px solid #f2d48a; /* Light Gold Border */
+                border-radius: 15px;       /* CURVED EDGES (Matches Pill) */
+                min-width: 40px;
+                min-height: 35px;
+                font-size: 18px;
                 font-weight: 900;
-                padding: 0;
+                padding: 0px;
+            }}
+            QPushButton.circle-btn:hover {{
+                background-color: #f2d48a; /* Lighter on hover */
             }}
             QPushButton.circle-btn:pressed {{
+                background-color: #b8860b; /* Darker on press */
                 padding-top: 2px;
                 padding-left: 2px;
             }}
 
-            /* --- PILL BUTTONS --- */
+            /* --- PILL BUTTONS (Curved Edges) --- */
             QPushButton.pill-btn {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #f8f4ec, stop:1 #d8cdb8);
-                border: 1px solid #8D6E63;
-                border-radius: 15px;
+                border: 2px solid #8D6E63;
+                border-radius: 15px;       /* CURVED EDGES */
                 color: #1a0e05;
                 font-weight: 900;
                 padding: 6px 15px;
@@ -251,9 +259,33 @@ class RiffStationWindow(QMainWindow):
                     stop:0 #f8e7b0, stop:1 #dfc37f);
             }}
 
+            /* --- PILL BUTTONS --- */
+            QPushButton.pill-btn {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #f8f4ec, stop:1 #d8cdb8);
+                border: 1px solid #8D6E63;
+                border-radius: 20px;
+                color: #1a0e05;
+                font-weight: 900;
+                padding: 6px 15px;
+                font-size: 15px;
+                min-width: 90px;
+            }}
+            QPushButton.pill-btn:pressed {{
+                padding-top: 3px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #e9dfcc, stop:1 #cbbda3);
+            }}
+            QPushButton.pill-btn:checked {{
+                color: #000;
+                border: 2px solid #D4AF37;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #f8e7b0, stop:1 #dfc37f);
+            }}
+
             /* --- TRANSPORT BRIDGE --- */
             QFrame#BridgeFrame {{
-                background-image: url({assets_path}/transport_bar.png);
+                background-image: url({self.assets_path}/transport_bar.png);
                 background-position: center;
                 background-size: 100% 100%;
                 background-repeat: no-repeat;
@@ -375,21 +407,26 @@ class RiffStationWindow(QMainWindow):
         
         # Buttons
         type_layout = QHBoxLayout()
-        type_layout.setSpacing(10)
+        type_layout.setSpacing(20)  # Increased spacing slightly for better looks
         
+        # 1. Beginner Button
         self.btn_beginner = QPushButton("Beginner")
-        self.btn_beginner.setProperty("class", "pill-btn") 
+        self.btn_beginner.setProperty("class", "pill-btn")  # Connects to CSS for rounded edges
         self.btn_beginner.setCheckable(True)
         self.btn_beginner.setChecked(True)
+        self.btn_beginner.setCursor(Qt.CursorShape.PointingHandCursor) # Hand cursor on hover
         self.btn_beginner.clicked.connect(lambda: self.set_chord_type_mode("beginner"))
         type_layout.addWidget(self.btn_beginner)
         
+        # 2. Advanced Button
         self.btn_advanced = QPushButton("Advanced")
-        self.btn_advanced.setProperty("class", "pill-btn")
+        self.btn_advanced.setProperty("class", "pill-btn") # <--- THIS LINE WAS LIKELY MISSING BEFORE
         self.btn_advanced.setCheckable(True)
+        self.btn_advanced.setCursor(Qt.CursorShape.PointingHandCursor) # Hand cursor on hover
         self.btn_advanced.clicked.connect(lambda: self.set_chord_type_mode("advanced"))
         type_layout.addWidget(self.btn_advanced)
         
+        # 3. Group them (Exclusive selection)
         grp = QButtonGroup(self)
         grp.addButton(self.btn_beginner)
         grp.addButton(self.btn_advanced)
@@ -825,18 +862,34 @@ class RiffStationWindow(QMainWindow):
 def run_app():
     app = QApplication(sys.argv)
 
-    font_path = resource_path("CAPO_app/assets/fonts/Rosaline.ttf")
-    font_id = QFontDatabase.addApplicationFont(font_path)
+    # --- 1. DETERMINE ASSETS PATH ---
+    if hasattr(sys, '_MEIPASS'):
+        base_dir = os.path.join(sys._MEIPASS, "assets")
+    else:
+        base_dir = os.path.abspath("CAPO_app/assets")
+        
+    assets_path = base_dir.replace("\\", "/")
 
-    # Debug print to check if it loaded (optional)
+    # --- 2. LOAD FONT (Fixed Filename: .otf instead of .ttf) ---
+    font_path = f"{assets_path}/fonts/Rosaline-Regular.otf"  # <--- UPDATED THIS LINE
+    font_id = QFontDatabase.addApplicationFont(font_path)
+    
+    # Default fallback
+    rosaline_family = "Segoe UI" 
+
     if font_id < 0:
         print(f"Error: Could not load font at {font_path}")
     else:
-        print(f"Loaded font: {QFontDatabase.applicationFontFamilies(font_id)}")
-    
-    # Set a fusion style to ensure standard controls look decent before our stylesheet applies
+        # CAPTURE THE EXACT INTERNAL NAME
+        families = QFontDatabase.applicationFontFamilies(font_id)
+        if families:
+            rosaline_family = families[0]
+            print(f"Success! Font loaded as: '{rosaline_family}'")
+
     app.setStyle("Fusion")
     
-    window = RiffStationWindow()
-    window.showMaximized()
+    # --- 3. PASS THE FONT NAME TO THE WINDOW ---
+    window = RiffStationWindow(custom_font_name=rosaline_family)
+    window.show()
+    
     sys.exit(app.exec())
