@@ -103,20 +103,25 @@ class RiffStationWindow(QMainWindow):
         # --- WINDOW SETUP ---
         self.setWindowTitle("Capo | Unlock the Music")
         
-        # REMOVED: self.setMaximumSize(1000, 720) <-- Removed so you can maximize
-        self.setFixedSize(1333, 937)
-        #self.setMinimumSize(1000, 720) 
+        # 1. SET INITIAL SIZE (Starts at this size, but is resizable)
         self.resize(1333, 937)
+        self.setMinimumSize(1000, 720) # Prevents shrinking too small
         
-        self.setWindowFlags(
-            Qt.WindowType.Window | 
-            Qt.WindowType.WindowCloseButtonHint | 
-            Qt.WindowType.CustomizeWindowHint |
-            Qt.WindowType.WindowTitleHint
-        )
+        # 2. WINDOW FLAGS
+        # We MUST include WindowMaximizeButtonHint to allow resizing borders on Windows.
+        # We can still manually disable Minimize if you prefer.
+        flags = Qt.WindowType.Window
+        flags |= Qt.WindowType.WindowCloseButtonHint
+        flags |= Qt.WindowType.WindowMaximizeButtonHint # Required for manual resizing
+        flags |= Qt.WindowType.CustomizeWindowHint
+        flags |= Qt.WindowType.WindowTitleHint
+        
+        self.setWindowFlags(flags)
+
+        # Optional: Disable Minimize only (if you still want that hidden)
+        # self.setWindowFlag(Qt.WindowType.WindowMinimizeButtonHint, False)
         
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        
         # --- STYLESHEET ---
         self.setStyleSheet(f"""
             QMainWindow {{
